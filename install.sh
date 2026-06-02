@@ -90,8 +90,6 @@ show_banner() {
     ║                                      ║
     ╚══════════════════════════════════════╝
 BANNER
-    
-BANNER
     echo -e "${NC}"
     echo -e "${WHITE}         thevoidkernel - YouTube${NC}"
     echo ""
@@ -108,18 +106,18 @@ detect_device() {
     
     # Detect GPU type for driver selection
     GPU_VENDOR=$(getprop ro.hardware.egl 2>/dev/null || echo "")
-    
+
     echo -e "  ${GREEN}📱${NC} Device: ${WHITE}${DEVICE_BRAND} ${DEVICE_MODEL}${NC}"
     echo -e "  ${GREEN}🤖${NC} Android: ${WHITE}${ANDROID_VERSION}${NC}"
     echo -e "  ${GREEN}⚙️${NC}  CPU: ${WHITE}${CPU_ABI}${NC}"
-    
-    # Determine GPU driver
-    if [[ "$GPU_VENDOR" == *"adreno"* ]] || [[ "$DEVICE_BRAND" == *"samsung"* ]] || [[ "$DEVICE_BRAND" == *"Samsung"* ]] || [[ "$DEVICE_BRAND" == *"oneplus"* ]] || [[ "$DEVICE_BRAND" == *"xiaomi"* ]]; then
+
+    # Determine GPU driver — only use Turnip if hardware explicitly reports Adreno
+    if [[ "$GPU_VENDOR" == *"adreno"* ]]; then
         GPU_DRIVER="freedreno"
         echo -e "  ${GREEN}🎮${NC} GPU: ${WHITE}Adreno (Qualcomm) - Turnip driver${NC}"
     else
         GPU_DRIVER="swrast"
-        echo -e "  ${GREEN}🎮${NC} GPU: ${WHITE}Software rendering${NC}"
+        echo -e "  ${GREEN}🎮${NC} GPU: ${WHITE}Software rendering (non-Adreno GPU detected)${NC}"
     fi
     
     echo ""
@@ -173,15 +171,16 @@ step_gpu() {
     echo ""
     
     install_pkg "mesa-zink" "Mesa Zink (OpenGL over Vulkan)"
-    
+
     if [ "$GPU_DRIVER" == "freedreno" ]; then
         install_pkg "mesa-vulkan-icd-freedreno" "Turnip Adreno GPU Driver"
     else
         install_pkg "mesa-vulkan-icd-swrast" "Software Vulkan Renderer"
     fi
-    
+
     install_pkg "vulkan-loader-android" "Vulkan Loader"
-    
+    install_pkg "mesa-utils" "Mesa Utilities (glxinfo)"
+
     echo -e "  ${GREEN}✓${NC} GPU acceleration configured!"
 }
 # ============== STEP 6: INSTALL AUDIO ==============
@@ -225,13 +224,21 @@ step_security_tools() {
     install_pkg "hydra" "Hydra Password Cracker"
     install_pkg "john" "John the Ripper"
     install_pkg "sqlmap" "SQLMap (SQL Injection)"
-    
+    install_pkg "python" "Python"
+
     # Python tools
     echo -e "  ${YELLOW}⏳${NC} Installing Python security libraries..."
-    pip install requests beautifulsoup4 > /dev/null 2>&1
+    pip3 install requests beautifulsoup4 > /dev/null 2>&1
     echo -e "  ${GREEN}✓${NC} Python libraries installed"
 }
 # ============== STEP 10: INSTALL METASPLOIT ==============
+step_metasploit() {
+    update_progress
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Metasploit Framework...${NC}"
+    echo ""
+
+    install_pkg "metasploit" "Metasploit Framework"
+}
 # ============== STEP 11: INSTALL WINE (WINDOWS APPS) ==============
 step_wine() {
     update_progress
@@ -250,10 +257,7 @@ step_wine() {
     ln -sf /data/data/com.termux/files/usr/opt/hangover-wine/bin/wine /data/data/com.termux/files/usr/bin/wine
     ln -sf /data/data/com.termux/files/usr/opt/hangover-wine/bin/winecfg /data/data/com.termux/files/usr/bin/winecfg
     
-    # Apply registry fix for modern font smoothing
-    echo -e "  ${YELLOW}⏳${NC} Applying Windows UI optimizations..."
-    wine reg add "HKEY_CURRENT_USER\Control Panel\Desktop" /v FontSmoothing /t REG_SZ /d 2 /f > /dev/null 2>&1
-    echo -e "  ${GREEN}✓${NC} UI optimized"
+    echo -e "  ${GREEN}✓${NC} Wine installed (font smoothing will be applied on first desktop launch)"
 }
 # ============== STEP 12: CREATE LAUNCHER SCRIPTS ==============
 step_launchers() {
@@ -310,6 +314,8 @@ termux-x11 :0 -ac &
 sleep 3
 # Set display
 export DISPLAY=:0
+# Apply Wine font smoothing now that display is available
+wine reg add "HKEY_CURRENT_USER\Control Panel\Desktop" /v FontSmoothing /t REG_SZ /d 2 /f > /dev/null 2>&1
 # Start XFCE Desktop
 echo "🖥️ Launching XFCE4 Desktop..."
 echo ""
@@ -346,7 +352,7 @@ while true; do
     case $choice in
         1) 
             read -p "  Enter target IP/hostname: " target
-            nmap -sV $target
+            nmap -sV "$target"
             read -p "Press Enter to continue..."
             ;;
         2) 
