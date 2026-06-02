@@ -143,6 +143,12 @@ step_repos() {
     
     install_pkg "x11-repo" "X11 Repository"
     install_pkg "tur-repo" "TUR Repository (Firefox, VS Code)"
+    install_pkg "root-repo" "Root Repository (security tools)"
+    install_pkg "unstable-repo" "Unstable Repository (Metasploit)"
+
+    # Repos add new package lists — refresh so the new packages can be found
+    (yes | pkg update -y > /dev/null 2>&1) &
+    spinner $! "Refreshing package lists..."
 }
 # ============== STEP 3: INSTALL TERMUX-X11 ==============
 step_x11() {
@@ -172,14 +178,14 @@ step_gpu() {
     
     install_pkg "mesa-zink" "Mesa Zink (OpenGL over Vulkan)"
 
+    # The Vulkan ICD packages depend on (and pull in) the correct Vulkan loader.
+    # Do NOT install vulkan-loader-android explicitly — it provides the same
+    # libvulkan as vulkan-loader-generic and the two conflict.
     if [ "$GPU_DRIVER" == "freedreno" ]; then
         install_pkg "mesa-vulkan-icd-freedreno" "Turnip Adreno GPU Driver"
     else
         install_pkg "mesa-vulkan-icd-swrast" "Software Vulkan Renderer"
     fi
-
-    install_pkg "vulkan-loader-android" "Vulkan Loader"
-    install_pkg "mesa-utils" "Mesa Utilities (glxinfo)"
 
     echo -e "  ${GREEN}✓${NC} GPU acceleration configured!"
 }
@@ -221,15 +227,14 @@ step_security_tools() {
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Security Tools...${NC}"
     echo ""
     
+    install_pkg "python" "Python"
     install_pkg "hydra" "Hydra Password Cracker"
     install_pkg "john" "John the Ripper"
-    install_pkg "sqlmap" "SQLMap (SQL Injection)"
-    install_pkg "python" "Python"
 
-    # Python tools
-    echo -e "  ${YELLOW}⏳${NC} Installing Python security libraries..."
-    pip3 install requests beautifulsoup4 > /dev/null 2>&1
-    echo -e "  ${GREEN}✓${NC} Python libraries installed"
+    # SQLMap was removed from the Termux repos — install it from PyPI instead.
+    echo -e "  ${YELLOW}⏳${NC} Installing SQLMap + Python libraries via pip..."
+    pip3 install sqlmap requests beautifulsoup4 > /dev/null 2>&1
+    echo -e "  ${GREEN}✓${NC} SQLMap + Python libraries installed"
 }
 # ============== STEP 10: INSTALL METASPLOIT ==============
 step_metasploit() {
@@ -372,7 +377,14 @@ while true; do
             ;;
         6)
             echo ""
-            glxinfo | grep "renderer"
+            if command -v vulkaninfo >/dev/null 2>&1; then
+                vulkaninfo --summary 2>/dev/null | grep -iE "deviceName|driverName"
+            elif command -v glxinfo >/dev/null 2>&1; then
+                glxinfo 2>/dev/null | grep -i "renderer"
+            else
+                echo "  GPU driver: ${GALLIUM_DRIVER:-zink} | ICD: ${MESA_LOADER_DRIVER_OVERRIDE:-zink}"
+                echo "  (install 'vulkan-tools' or 'mesa-demos' for detailed GPU info)"
+            fi
             echo ""
             read -p "Press Enter to continue..."
             ;;
