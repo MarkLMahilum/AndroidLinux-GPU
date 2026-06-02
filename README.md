@@ -24,11 +24,11 @@
 ## 🚀 One-Command Installation
 Open **Termux** and paste this:
 ```bash
-curl -sL https://raw.githubusercontent.com/AbuZar-Ansarii/AndroidLinux-GPU/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/MarkLMahilum/AndroidLinux-GPU/main/install.sh | bash
 ```
 **Or using wget:**
 ```bash
-wget -O - https://raw.githubusercontent.com/AbuZar-Ansarii/AndroidLinux-GPU/main/install.sh | bash
+wget -O - https://raw.githubusercontent.com/MarkLMahilum/AndroidLinux-GPU/main/install.sh | bash
 ```
 ## Storage Access
 ```
